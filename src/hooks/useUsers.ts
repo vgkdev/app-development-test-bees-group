@@ -26,6 +26,8 @@ export const useUsers = () => {
           registerAt: new Date(user.registerAt), // Chuyển string thành Date
         }));
 
+        console.log("Converted users:", typeof convertedUsers[0].registerAt); // Log dữ liệu đã chuyển đổi
+
         setUsers(convertedUsers);
       } catch (e) {
         setError(

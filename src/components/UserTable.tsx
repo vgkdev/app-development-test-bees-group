@@ -20,23 +20,16 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import { visuallyHidden } from "@mui/utils";
 import { useUsers } from "../hooks/useUsers";
 import CircularProgress from "@mui/material/CircularProgress";
-import { Chip } from "@mui/material";
+import { Chip, Link, TextField } from "@mui/material";
 import { CheckCircleOutline, CloseOutlined } from "@mui/icons-material";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
-
-interface UserData {
-  id: string;
-  name: string;
-  balance: number;
-  email: string;
-  registerAt: Date;
-  active: boolean;
-}
+import { formatDate, formatDateTime } from "../utils/dateUtils";
+import { TUser } from "../types/User";
 
 interface HeadCell {
   disablePadding: boolean;
-  id: keyof UserData | "status" | "action";
+  id: keyof TUser | "status" | "action";
   label: string;
   numeric: boolean;
 }
@@ -84,7 +77,7 @@ interface EnhancedTableProps {
   numSelected: number;
   onRequestSort: (
     event: React.MouseEvent<unknown>,
-    property: keyof UserData
+    property: keyof TUser
   ) => void;
   onSelectAllClick: (event: React.ChangeEvent<HTMLInputElement>) => void;
   order: Order;
@@ -102,7 +95,7 @@ function EnhancedTableHead(props: EnhancedTableProps) {
     onRequestSort,
   } = props;
   const createSortHandler =
-    (property: keyof UserData) => (event: React.MouseEvent<unknown>) => {
+    (property: keyof TUser) => (event: React.MouseEvent<unknown>) => {
       onRequestSort(event, property);
     };
 
@@ -133,7 +126,7 @@ function EnhancedTableHead(props: EnhancedTableProps) {
               onClick={
                 headCell.id === "status" || headCell.id === "action"
                   ? undefined
-                  : createSortHandler(headCell.id as keyof UserData)
+                  : createSortHandler(headCell.id as keyof TUser)
               }
             >
               {headCell.label}
@@ -154,8 +147,20 @@ interface EnhancedTableToolbarProps {
   numSelected: number;
 }
 
-function EnhancedTableToolbar(props: EnhancedTableToolbarProps) {
-  const { numSelected } = props;
+function EnhancedTableToolbar(
+  props: EnhancedTableToolbarProps & {
+    filterValues: {
+      name: string;
+      balance: string;
+      email: string;
+      registerAt: string;
+    };
+    onFilterChange: (
+      prop: "balance" | "email" | "registerAt" | "name"
+    ) => (event: React.ChangeEvent<HTMLInputElement>) => void;
+  }
+) {
+  const { numSelected, filterValues, onFilterChange } = props;
 
   return (
     <Toolbar
@@ -163,6 +168,11 @@ function EnhancedTableToolbar(props: EnhancedTableToolbarProps) {
         {
           pl: { sm: 2 },
           pr: { xs: 1, sm: 1 },
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-start",
+          gap: 2,
+          pt: 2,
         },
         numSelected > 0 && {
           bgcolor: (theme) =>
@@ -173,38 +183,82 @@ function EnhancedTableToolbar(props: EnhancedTableToolbarProps) {
         },
       ]}
     >
-      {numSelected > 0 ? (
-        <Typography
-          sx={{ flex: "1 1 100%" }}
-          color="inherit"
-          variant="subtitle1"
-          component="div"
-        >
-          {numSelected} selected
-        </Typography>
-      ) : (
-        <Typography
-          sx={{ flex: "1 1 100%" }}
-          variant="h6"
-          id="tableTitle"
-          component="div"
-        >
-          Users
-        </Typography>
-      )}
-      {numSelected > 0 ? (
-        <Tooltip title="Delete">
-          <IconButton>
-            <DeleteIcon />
-          </IconButton>
-        </Tooltip>
-      ) : (
-        <Tooltip title="Filter list">
-          <IconButton>
-            <FilterListIcon />
-          </IconButton>
-        </Tooltip>
-      )}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          width: "100%",
+          alignItems: "center",
+        }}
+      >
+        {numSelected > 0 ? (
+          <Typography
+            sx={{ flex: "1 1 100%" }}
+            color="inherit"
+            variant="subtitle1"
+            component="div"
+          >
+            {numSelected} selected
+          </Typography>
+        ) : (
+          <Typography
+            sx={{ flex: "1 1 100%" }}
+            variant="h6"
+            id="tableTitle"
+            component="div"
+          >
+            Users
+          </Typography>
+        )}
+        {numSelected > 0 ? (
+          <Tooltip title="Delete">
+            <IconButton>
+              <DeleteIcon />
+            </IconButton>
+          </Tooltip>
+        ) : (
+          <Tooltip title="Filter list">
+            <IconButton>
+              <FilterListIcon />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+
+      <Box sx={{ display: "flex", gap: 2, width: "100%", flexWrap: "wrap" }}>
+        <TextField
+          size="small"
+          label="Filter by name"
+          variant="outlined"
+          value={filterValues.name}
+          onChange={onFilterChange("name")}
+          sx={{ minWidth: 200 }}
+        />
+        <TextField
+          size="small"
+          label="Filter by balance"
+          variant="outlined"
+          value={filterValues.balance}
+          onChange={onFilterChange("balance")}
+          sx={{ minWidth: 200 }}
+        />
+        <TextField
+          size="small"
+          label="Filter by email"
+          variant="outlined"
+          value={filterValues.email}
+          onChange={onFilterChange("email")}
+          sx={{ minWidth: 200 }}
+        />
+        <TextField
+          size="small"
+          label="Filter by registration"
+          variant="outlined"
+          value={filterValues.registerAt}
+          onChange={onFilterChange("registerAt")}
+          sx={{ minWidth: 200 }}
+        />
+      </Box>
     </Toolbar>
   );
 }
@@ -221,7 +275,7 @@ function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   return 0;
 }
 
-function getComparator<Key extends keyof UserData>(
+function getComparator<Key extends keyof TUser>(
   order: Order,
   orderBy: Key
 ): (
@@ -236,15 +290,27 @@ function getComparator<Key extends keyof UserData>(
 export default function UserTable() {
   const { users, loading, error } = useUsers();
   const [order, setOrder] = React.useState<Order>("asc");
-  const [orderBy, setOrderBy] = React.useState<keyof UserData>("name");
+  const [orderBy, setOrderBy] = React.useState<keyof TUser>("name");
   const [selected, setSelected] = React.useState<readonly string[]>([]);
   const [page, setPage] = React.useState(0);
   const [dense, setDense] = React.useState(false);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
 
+  const [filterValues, setFilterValues] = React.useState<{
+    name: string;
+    balance: string;
+    email: string;
+    registerAt: string;
+  }>({
+    name: "",
+    balance: "",
+    email: "",
+    registerAt: "",
+  });
+
   const handleRequestSort = (
     event: React.MouseEvent<unknown>,
-    property: keyof UserData
+    property: keyof TUser
   ) => {
     const isAsc = orderBy === property && order === "asc";
     setOrder(isAsc ? "desc" : "asc");
@@ -290,9 +356,9 @@ export default function UserTable() {
     setPage(0);
   };
 
-  const handleChangeDense = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setDense(event.target.checked);
-  };
+  // const handleChangeDense = (event: React.ChangeEvent<HTMLInputElement>) => {
+  //   setDense(event.target.checked);
+  // };
 
   const isSelected = (id: string) => selected.indexOf(id) !== -1;
 
@@ -300,12 +366,31 @@ export default function UserTable() {
   const emptyRows =
     page > 0 ? Math.max(0, (1 + page) * rowsPerPage - users.length) : 0;
 
+  const handleFilterChange =
+    (prop: keyof typeof filterValues) =>
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setFilterValues({ ...filterValues, [prop]: event.target.value });
+      setPage(0); // Reset to first page when filtering
+    };
+
   const visibleRows = React.useMemo(
     () =>
       [...users]
+        .filter((user) => {
+          return (
+            user.name.toLowerCase().includes(filterValues.name.toLowerCase()) &&
+            (filterValues.balance === "" ||
+              user.balance.toString().includes(filterValues.balance)) &&
+            user.email
+              .toLowerCase()
+              .includes(filterValues.email.toLowerCase()) &&
+            (filterValues.registerAt === "" ||
+              formatDate(user.registerAt).includes(filterValues.registerAt))
+          );
+        })
         .sort(getComparator(order, orderBy))
         .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [order, orderBy, page, rowsPerPage, users]
+    [order, orderBy, page, rowsPerPage, users, filterValues]
   );
 
   if (loading) {
@@ -327,7 +412,11 @@ export default function UserTable() {
   return (
     <Box sx={{ width: "100%" }}>
       <Paper sx={{ width: "100%", mb: 2 }}>
-        <EnhancedTableToolbar numSelected={selected.length} />
+        <EnhancedTableToolbar
+          numSelected={selected.length}
+          filterValues={filterValues}
+          onFilterChange={handleFilterChange}
+        />
         <TableContainer>
           <Table
             sx={{ minWidth: 750 }}
@@ -376,9 +465,30 @@ export default function UserTable() {
                       {row.name}
                     </TableCell>
                     <TableCell align="right">{row.balance}</TableCell>
-                    <TableCell>{row.email}</TableCell>
                     <TableCell>
-                      {row.registerAt.toISOString().split("T")[0]}
+                      <Link
+                        href={`mailto:${row.email}`}
+                        color="inherit"
+                        underline="hover"
+                        onClick={(e) => e.stopPropagation()}
+                        sx={{
+                          textDecoration: "none",
+                          "&:hover": {
+                            textDecoration: "underline",
+                          },
+                        }}
+                      >
+                        {row.email}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Tooltip
+                        title={formatDateTime(row.registerAt)}
+                        placement="top"
+                        arrow
+                      >
+                        <span>{formatDate(row.registerAt)}</span>
+                      </Tooltip>
                     </TableCell>
                     <TableCell>
                       <Chip
@@ -395,10 +505,10 @@ export default function UserTable() {
                       />
                     </TableCell>
                     <TableCell>
-                      <IconButton>
+                      <IconButton onClick={(e) => e.stopPropagation()}>
                         <EditOutlinedIcon />
                       </IconButton>
-                      <IconButton>
+                      <IconButton onClick={(e) => e.stopPropagation()}>
                         <DeleteOutlineOutlinedIcon />
                       </IconButton>
                     </TableCell>
