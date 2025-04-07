@@ -26,6 +26,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { formatDate, formatDateTime } from "../utils/dateUtils";
 import { TUser } from "../types/User";
+import ErrorSnackbar from "./ErrorSnackbar";
 
 interface HeadCell {
   disablePadding: boolean;
@@ -94,6 +95,7 @@ function EnhancedTableHead(props: EnhancedTableProps) {
     rowCount,
     onRequestSort,
   } = props;
+
   const createSortHandler =
     (property: keyof TUser) => (event: React.MouseEvent<unknown>) => {
       onRequestSort(event, property);
@@ -113,36 +115,46 @@ function EnhancedTableHead(props: EnhancedTableProps) {
             }}
           />
         </TableCell>
-        {headCells.map((headCell) => (
-          <TableCell
-            key={headCell.id}
-            align={headCell.numeric ? "right" : "left"}
-            padding={headCell.disablePadding ? "none" : "normal"}
-            sortDirection={orderBy === headCell.id ? order : false}
-          >
-            <TableSortLabel
-              active={orderBy === headCell.id}
-              direction={orderBy === headCell.id ? order : "asc"}
-              onClick={
-                headCell.id === "status" || headCell.id === "action"
-                  ? undefined
-                  : createSortHandler(headCell.id as keyof TUser)
+        {headCells.map((headCell) => {
+          const isSortable =
+            headCell.id !== "status" && headCell.id !== "action";
+
+          return (
+            <TableCell
+              key={headCell.id}
+              align={headCell.numeric ? "right" : "left"}
+              padding={headCell.disablePadding ? "none" : "normal"}
+              sortDirection={
+                isSortable && orderBy === headCell.id ? order : false
               }
             >
-              {headCell.label}
-              {orderBy === headCell.id ? (
-                <Box component="span" sx={visuallyHidden}>
-                  {order === "desc" ? "sorted descending" : "sorted ascending"}
-                </Box>
-              ) : null}
-            </TableSortLabel>
-          </TableCell>
-        ))}
+              {isSortable ? (
+                <TableSortLabel
+                  active={orderBy === headCell.id}
+                  direction={orderBy === headCell.id ? order : "asc"}
+                  onClick={createSortHandler(headCell.id as keyof TUser)}
+                >
+                  {headCell.label}
+                  {orderBy === headCell.id ? (
+                    <Box component="span" sx={visuallyHidden}>
+                      {order === "desc"
+                        ? "sorted descending"
+                        : "sorted ascending"}
+                    </Box>
+                  ) : null}
+                </TableSortLabel>
+              ) : (
+                <Typography variant="body2" component="span">
+                  {headCell.label}
+                </Typography>
+              )}
+            </TableCell>
+          );
+        })}
       </TableRow>
     </TableHead>
   );
 }
-
 interface EnhancedTableToolbarProps {
   numSelected: number;
 }
@@ -295,6 +307,13 @@ export default function UserTable() {
   const [page, setPage] = React.useState(0);
   const [dense, setDense] = React.useState(false);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [snackbarOpen, setSnackbarOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (error) {
+      setSnackbarOpen(true);
+    }
+  }, [error]);
 
   const [filterValues, setFilterValues] = React.useState<{
     name: string;
@@ -401,142 +420,148 @@ export default function UserTable() {
     );
   }
 
-  if (error) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-        <Typography color="error">{error}</Typography>
-      </Box>
-    );
-  }
-
   return (
     <Box sx={{ width: "100%" }}>
-      <Paper sx={{ width: "100%", mb: 2 }}>
-        <EnhancedTableToolbar
-          numSelected={selected.length}
-          filterValues={filterValues}
-          onFilterChange={handleFilterChange}
-        />
-        <TableContainer>
-          <Table
-            sx={{ minWidth: 750 }}
-            aria-labelledby="tableTitle"
-            size={dense ? "small" : "medium"}
-          >
-            <EnhancedTableHead
-              numSelected={selected.length}
-              order={order}
-              orderBy={orderBy}
-              onSelectAllClick={handleSelectAllClick}
-              onRequestSort={handleRequestSort}
-              rowCount={users.length}
-            />
-            <TableBody>
-              {visibleRows.map((row, index) => {
-                const isItemSelected = isSelected(row.id);
-                const labelId = `enhanced-table-checkbox-${index}`;
+      {error && (
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+          <Typography color="error">{error}</Typography>
+        </Box>
+      )}
 
-                return (
-                  <TableRow
-                    hover
-                    onClick={(event) => handleClick(event, row.id)}
-                    role="checkbox"
-                    aria-checked={isItemSelected}
-                    tabIndex={-1}
-                    key={row.id}
-                    selected={isItemSelected}
-                    sx={{ cursor: "pointer" }}
-                  >
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        color="primary"
-                        checked={isItemSelected}
-                        inputProps={{
-                          "aria-labelledby": labelId,
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell
-                      component="th"
-                      id={labelId}
-                      scope="row"
-                      padding="none"
+      {!error && (
+        <Paper sx={{ width: "100%", mb: 2 }}>
+          <EnhancedTableToolbar
+            numSelected={selected.length}
+            filterValues={filterValues}
+            onFilterChange={handleFilterChange}
+          />
+          <TableContainer>
+            <Table
+              sx={{ minWidth: 750 }}
+              aria-labelledby="tableTitle"
+              size={dense ? "small" : "medium"}
+            >
+              <EnhancedTableHead
+                numSelected={selected.length}
+                order={order}
+                orderBy={orderBy}
+                onSelectAllClick={handleSelectAllClick}
+                onRequestSort={handleRequestSort}
+                rowCount={users.length}
+              />
+              <TableBody>
+                {visibleRows.map((row, index) => {
+                  const isItemSelected = isSelected(row.id);
+                  const labelId = `enhanced-table-checkbox-${index}`;
+
+                  return (
+                    <TableRow
+                      hover
+                      onClick={(event) => handleClick(event, row.id)}
+                      role="checkbox"
+                      aria-checked={isItemSelected}
+                      tabIndex={-1}
+                      key={row.id}
+                      selected={isItemSelected}
+                      sx={{ cursor: "pointer" }}
                     >
-                      {row.name}
-                    </TableCell>
-                    <TableCell align="right">{row.balance}</TableCell>
-                    <TableCell>
-                      <Link
-                        href={`mailto:${row.email}`}
-                        color="inherit"
-                        underline="hover"
-                        onClick={(e) => e.stopPropagation()}
-                        sx={{
-                          textDecoration: "none",
-                          "&:hover": {
-                            textDecoration: "underline",
-                          },
-                        }}
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          color="primary"
+                          checked={isItemSelected}
+                          inputProps={{
+                            "aria-labelledby": labelId,
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell
+                        component="th"
+                        id={labelId}
+                        scope="row"
+                        padding="none"
                       >
-                        {row.email}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Tooltip
-                        title={formatDateTime(row.registerAt)}
-                        placement="top"
-                        arrow
-                      >
-                        <span>{formatDate(row.registerAt)}</span>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={row.active ? "Active" : "Inactive"}
-                        color={row.active ? "success" : "error"}
-                        size="small"
-                        icon={
-                          row.active ? (
-                            <CheckCircleOutline />
-                          ) : (
-                            <CloseOutlined />
-                          )
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <IconButton onClick={(e) => e.stopPropagation()}>
-                        <EditOutlinedIcon />
-                      </IconButton>
-                      <IconButton onClick={(e) => e.stopPropagation()}>
-                        <DeleteOutlineOutlinedIcon />
-                      </IconButton>
-                    </TableCell>
+                        {row.name}
+                      </TableCell>
+                      <TableCell align="right">{row.balance}</TableCell>
+                      <TableCell>
+                        <Link
+                          href={`mailto:${row.email}`}
+                          color="inherit"
+                          underline="hover"
+                          onClick={(e) => e.stopPropagation()}
+                          sx={{
+                            textDecoration: "none",
+                            "&:hover": {
+                              textDecoration: "underline",
+                            },
+                          }}
+                        >
+                          {row.email}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip
+                          title={formatDateTime(row.registerAt)}
+                          placement="top"
+                          arrow
+                        >
+                          <span>{formatDate(row.registerAt)}</span>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={row.active ? "Active" : "Inactive"}
+                          color={row.active ? "success" : "error"}
+                          size="small"
+                          icon={
+                            row.active ? (
+                              <CheckCircleOutline />
+                            ) : (
+                              <CloseOutlined />
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <IconButton onClick={(e) => e.stopPropagation()}>
+                          <EditOutlinedIcon />
+                        </IconButton>
+                        <IconButton onClick={(e) => e.stopPropagation()}>
+                          <DeleteOutlineOutlinedIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {emptyRows > 0 && (
+                  <TableRow
+                    style={{
+                      height: (dense ? 33 : 53) * emptyRows,
+                    }}
+                  >
+                    <TableCell colSpan={headCells.length + 1} />
                   </TableRow>
-                );
-              })}
-              {emptyRows > 0 && (
-                <TableRow
-                  style={{
-                    height: (dense ? 33 : 53) * emptyRows,
-                  }}
-                >
-                  <TableCell colSpan={headCells.length + 1} />
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <TablePagination
-          rowsPerPageOptions={[10, 25, 50]}
-          component="div"
-          count={users.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-        />
-      </Paper>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[10, 25, 50]}
+            component="div"
+            count={users.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+          />
+        </Paper>
+      )}
+
+      <ErrorSnackbar
+        open={!!error && snackbarOpen}
+        message={error || ""}
+        onClose={() => setSnackbarOpen(false)}
+      />
     </Box>
   );
 }

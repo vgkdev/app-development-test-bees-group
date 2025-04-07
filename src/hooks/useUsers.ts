@@ -30,10 +30,20 @@ export const useUsers = () => {
 
         setUsers(convertedUsers);
       } catch (e) {
-        setError(
-          "Failed to fetch users: " +
-            (e instanceof Error ? e.message : "Unknown error")
-        );
+        // setError(
+        //   "Failed to fetch users: " +
+        //     (e instanceof Error ? e.message : "Unknown error")
+        // );
+
+        const error = e as Error;
+        if (error.message.includes("Network Error")) {
+          setError("Network error. Please check your connection.");
+        } else {
+          setError(
+            "Failed to fetch users: " +
+              (e instanceof Error ? e.message : "Unknown error")
+          );
+        }
       } finally {
         setLoading(false);
       }
